@@ -1,0 +1,78 @@
+
+int potPins[4] = {34, 35, 32, 33};
+int ledPins[4] = {5, 18, 19, 21};
+
+
+const float VREF = 3.3;
+const int ADC_RES = 4095;
+
+const float MAX_CURRENT = 5.0;
+
+
+int ldrThreshold = 1000;   
+
+void setup() {
+
+  Serial.begin(115200);
+
+  analogReadResolution(12);
+  analogSetAttenuation(ADC_11db);
+
+  for (int i = 0; i < 4; i++) {
+    ledcAttach(ledPins[i], 5000, 8);
+  }
+
+  Serial.println("Street Light System (WITH UNITS)");
+  Serial.println("----------------------------------------------------");
+}
+
+void loop() {
+
+  for (int i = 0; i < 4; i++) {
+
+    int potValue = analogRead(potPins[i]);
+
+
+    float voltage = (potValue * VREF) / ADC_RES;
+
+
+    float current = (voltage / VREF) * MAX_CURRENT;
+
+    int brightness = map(potValue, 0, 4095, 0, 255);
+    ledcWrite(ledPins[i], brightness);
+
+    int ldrRaw = brightness * 16;
+
+    int ldrProcessed = (ldrRaw > ldrThreshold) ? 1 : 0;
+
+    bool fault = (ldrRaw < ldrThreshold);
+
+    Serial.print("LED ");
+    Serial.print(i + 1);
+
+    Serial.print(" | Voltage: ");
+    Serial.print(voltage, 2);
+    Serial.print(" V");
+
+    Serial.print(" | Current: ");
+    Serial.print(current, 2);
+    Serial.print(" A");
+
+    Serial.print(" | LDR raw: ");
+    Serial.print(ldrRaw);
+    Serial.print(" (ADC)");
+
+    Serial.print(" | LDR: ");
+    Serial.print(ldrProcessed);
+
+    Serial.print(" | Status: ");
+
+    if (fault)
+      Serial.println("FAULT");
+    else
+      Serial.println("WORKING");
+  }
+
+  Serial.println("----------------------------------------------------");
+  delay(500);
+}
