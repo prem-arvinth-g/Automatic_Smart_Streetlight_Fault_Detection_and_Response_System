@@ -1,0 +1,95 @@
+#include <WiFi.h>
+#include <HTTPClient.h>
+
+const char* ssid     = "";
+const char* password = "";
+
+const char* serverUrl = "";
+
+#define LDR1 34
+#define LDR2 35
+#define LDR3 32
+
+#define ADC_MAX 4095.0
+#define VREF 3.3
+
+float getVoltage(int raw) {
+  return (raw / ADC_MAX) * VREF;
+}
+
+
+String getStatus(float voltage) {
+  if (voltage < 1.5) {
+    return "Working"; 
+  } else {
+    return "Not_Working";
+  }
+}
+
+void setup() {
+  Serial.begin(115200);
+
+  pinMode(LDR1, INPUT);
+  pinMode(LDR2, INPUT);
+  pinMode(LDR3, INPUT);
+
+  WiFi.begin(ssid, password);
+  Serial.print("Connecting");
+
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+
+  Serial.println("\nConnected");
+}
+
+
+void sendData(int light_id, String status) {
+  if (WiFi.status() != WL_CONNECTED) return;
+
+  HTTPClient http;
+  http.begin(serverUrl);
+  http.addHeader("Content-Type", "application/json");
+
+
+  String body = "{";
+  body += "\"light_id\":" + String(light_id) + ",";
+  body += "\"status\":\"" + status + "\"";
+  body += "}";
+
+  int httpCode = http.POST(body);
+
+  Serial.print("HTTP for L");
+  Serial.print(light_id);
+  Serial.print(": ");
+  Serial.println(httpCode);
+
+  http.end();
+}
+
+void loop() {
+  int r1 = analogRead(LDR1);
+  int r2 = analogRead(LDR2);
+  int r3 = analogRead(LDR3);
+
+  float v1 = getVoltage(r1);
+  float v2 = getVoltage(r2);
+  float v3 = getVoltage(r3);
+
+  String s1 = getStatus(v1);
+  String s2 = getStatus(v2);
+  String s3 = getStatus(v3);
+
+  Serial.println("\n--- STATUS ---");
+  Serial.print("L1: "); Serial.print(v1); Serial.print(" → "); Serial.println(s1);
+  Serial.print("L2: "); Serial.print(v2); Serial.print(" → "); Serial.println(s2);
+  Serial.print("L3: "); Serial.print(v3); Serial.print(" → "); Serial.println(s3);
+
+
+  sendData(1, s1);
+  sendData(2, s2);
+  sendData(3, s3);
+
+  delay(1000);  
+}
